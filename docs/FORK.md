@@ -70,11 +70,18 @@ horizon-launcher instance curseforge .\MyPack-1.4.2.zip --home "$env:APPDATA\.mi
 
 ## Building it for Windows
 
-`pack.ps1` builds the release launcher and packs `dist/horizon-launcher-windows-x64.zip`
-(`horizon-launcher.exe`, `install.ps1`, `README-FIRST.txt`); `install.ps1 -Exe` installs from that
-folder, without administrator rights, and creates the Start menu and desktop shortcuts.
-`packaging/windows/setup.iss` (Inno Setup 6) makes the `Horizon-Offline-Launcher-Setup.exe` the
-upstream workflow ships, for whoever has Inno Setup.
+Releases live in [zeyad-shaban/horizon-offline-java-bridge](https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases):
+`Horizon-Offline-Launcher-Setup.exe` (Inno Setup, no admin, Start menu + desktop shortcuts, uninstaller)
+and `horizon-launcher-windows-x64.zip` (`install.ps1 -Exe` installs from the folder). The launcher's
+version is 1.5.0, above upstream's latest, so the update check never swaps this fork for a stock build.
+
+`pack.ps1` builds the release launcher and packs the zip; `packaging/windows/setup.iss` makes the
+`Setup.exe`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File pack.ps1
+iscc /DAppVersion=1.5.0 /DSource=launcher\target\release\horizon-launcher.exe /Odist packaging\windows\setup.iss
+```
 
 ## What is not done yet
 

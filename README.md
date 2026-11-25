@@ -25,6 +25,8 @@
 
 > **This fork** — `horizon-offline-java-bridge` — adds, on top of the offline launcher:
 >
+> - **Install (Windows x64, no admin):** [Horizon-Offline-Launcher-Setup.exe](https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases/latest/download/Horizon-Offline-Launcher-Setup.exe)
+>   ([releases](https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases); the zip beside it installs with `install.ps1 -Exe`).
 > - **Real Minecraft: Java Edition, offline.** A Java instance plays your own `%APPDATA%\.minecraft`
 >   in place (worlds, options and `mods/` untouched), with an offline name and no Microsoft account.
 > - **CurseForge modpacks.** `instance curseforge <pack>.zip` imports a pack's version, loader and
