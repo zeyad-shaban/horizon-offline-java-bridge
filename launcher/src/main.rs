@@ -93,6 +93,7 @@ use horizon_launcher::backend::{self, Job, Msg, Release, Running, Settings, Upda
 use horizon_launcher::build_import;
 use horizon_launcher::i18n::{self, tr, trf};
 use horizon_launcher::instances;
+use horizon_launcher::java_share;
 use horizon_launcher::native_mods;
 use horizon_launcher::native_status;
 use horizon_launcher::telemetry;
@@ -179,6 +180,26 @@ enum SelfUpdate {
     /// (`backend::cannot_replace_itself`), or the installer said why (the error). The player
     /// follows the recovery advice for its install location.
     Stuck(Option<String>),
+    Failed(String),
+}
+
+/// Home's "Play with friends" row for a Java instance: it watches the game's log for the world
+/// opened to LAN, forwards the port on the router and names the address to send.
+#[derive(Default)]
+struct ShareUi {
+    phase: SharePhase,
+    /// Bumped whenever sharing stops, so a task from before does not put its result back.
+    generation: u64,
+    copied: Option<Instant>,
+}
+
+#[derive(Default)]
+enum SharePhase {
+    #[default]
+    Off,
+    /// The world is not open yet: the game's log is watched.
+    Waiting,
+    Ready(horizon_launcher::java_share::Share),
     Failed(String),
 }
 
@@ -395,6 +416,8 @@ struct Launcher {
     /// starting now joins.
     friend_code: line_edit::LineEdit,
     friend_focused: bool,
+    /// Home's "Play with friends" row: sharing the world a Java instance opened to LAN.
+    share: ShareUi,
     friend_focus: FocusHandle,
     /// The window's width at the last frame: Home's head lays out by it, as the mockup's `xl`.
     window_width: f32,
@@ -698,6 +721,7 @@ impl Launcher {
             play_when_prepared: None,
             friend_code: line_edit::LineEdit::new(String::new(), 256, 32),
             friend_focused: false,
+            share: ShareUi::default(),
             window_width: 0.,
             window_long_side: 0.,
             scale_factor: 1.,
@@ -4785,10 +4809,23 @@ impl Launcher {
     }
 
     fn join_friend(&mut self) {
-        if horizon_friends::invite::parse(self.friend_code.text()).is_none() {
+        let text = self.friend_code.text().to_string();
+        // A Java instance joins an address: a friend's shared world, or any server. A Horizon
+        // instance joins an invite code.
+        if self
+            .selected_instance()
+            .is_some_and(|i| i.java.is_some())
+        {
+            let Some(address) = java_share::address(&text) else {
+                return;
+            };
+            self.quick_play("--server", address);
             return;
         }
-        self.joining = Some(self.friend_code.text().to_string());
+        if horizon_friends::invite::parse(&text).is_none() {
+            return;
+        }
+        self.joining = Some(text);
         self.play();
         if self.starting_client.is_none() {
             self.joining = None;

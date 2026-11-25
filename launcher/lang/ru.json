@@ -1254,5 +1254,14 @@
   "Found by itself in your launcher's folder. Or pick the {version}.jar file.": "Найден сам в папке вашего лаунчера. Или выберите файл {version}.jar.",
   "Choose jar…": "Выбрать jar…",
   "A 64×64 (or 64×32) skin PNG and a 64×32 cape PNG, kept by the launcher and given to the game when this name plays. You see them on yourself in single player and on servers that send no skin of their own; other players see them only where the server shows skins for names (SkinsRestorer: /skin).": "PNG скина 64×64 (или 64×32) и PNG плаща 64×32: лаунчер хранит их и отдаёт игре, когда играет это имя. Вы видите их на себе в одиночной игре и на серверах, которые не присылают свой скин; другие игроки видят их только там, где сервер показывает скины по именам (SkinsRestorer: /skin).",
-  "Offline launcher {version}": "Офлайн-лаунчер {version}"
+  "Offline launcher {version}": "Офлайн-лаунчер {version}",
+  "Play with friends": "Play with friends",
+  "Share my world": "Share my world",
+  "Open it in the game (Esc → Open to LAN), then Share.": "Open it in the game (Esc → Open to LAN), then Share.",
+  "Waiting for your world: in the game, Esc → Open to LAN.": "Waiting for your world: in the game, Esc → Open to LAN.",
+  "Friends anywhere": "Friends anywhere",
+  "Friends on this Wi-Fi": "Friends on this Wi-Fi",
+  "Send this to a friend: their launcher, the box above, Join. If it does not connect, allow Java through Windows Firewall.": "Send this to a friend: their launcher, the box above, Join. If it does not connect, allow Java through Windows Firewall.",
+  "No world was opened to LAN in 10 minutes. In the game: Esc → Open to LAN, then Share again.": "No world was opened to LAN in 10 minutes. In the game: Esc → Open to LAN, then Share again.",
+  "Paste a friend's address": "Paste a friend's address"
 }

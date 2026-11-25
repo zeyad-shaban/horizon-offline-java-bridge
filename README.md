@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/gerdaroot/Horizon-Offline-Launcher/releases/latest/download/Horizon-Offline-Launcher-Setup.exe"><b>Download for Windows</b></a> ·
+  <a href="https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases/latest/download/Horizon-Offline-Launcher-Setup.exe"><b>Download for Windows</b></a> ·
   <a href="#install">Install</a> ·
   <a href="#first-run">First run</a> ·
   <a href="#faq">FAQ</a> ·
@@ -30,7 +30,10 @@
 > - **Real Minecraft: Java Edition, offline.** A Java instance plays your own `%APPDATA%\.minecraft`
 >   in place (worlds, options and `mods/` untouched), with an offline name and no Microsoft account.
 > - **CurseForge modpacks.** `instance curseforge <pack>.zip` imports a pack's version, loader and
->   required jars from CurseForge's CDN — no API key, no account.
+>   required jars from CurseForge's CDN - no API key, no account.
+> - **Play with friends, no VPN.** *Share my world* forwards the port on your router (UPnP) and
+>   shows one address, `ip:port`; your friend pastes it into the launcher's box and presses Join.
+>   Same Wi-Fi needs nothing at all.
 > - **The Java bridge** (Fabric jars inside Horizon) is wired next; [`docs/FORK.md`](docs/FORK.md)
 >   says what it needs and what works today.
 >
@@ -57,12 +60,12 @@ Everything else works as in Horizon: mods, resource packs, instances, servers, p
 ## Install
 
 <p align="center">
-  <a href="https://github.com/gerdaroot/Horizon-Offline-Launcher/releases/latest/download/Horizon-Offline-Launcher-Setup.exe"><img src="https://img.shields.io/badge/Download%20for%20Windows-Setup.exe-6C4AE0?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows"></a>
+  <a href="https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases/latest/download/Horizon-Offline-Launcher-Setup.exe"><img src="https://img.shields.io/badge/Download%20for%20Windows-Setup.exe-6C4AE0?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows"></a>
 </p>
 
 ### Windows
 
-1. **[Download `Horizon-Offline-Launcher-Setup.exe`](https://github.com/gerdaroot/Horizon-Offline-Launcher/releases/latest/download/Horizon-Offline-Launcher-Setup.exe)**.
+1. **[Download `Horizon-Offline-Launcher-Setup.exe`](https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases/latest/download/Horizon-Offline-Launcher-Setup.exe)**.
 2. **Run it.** If Windows says "Windows protected your PC", click **More info → Run anyway** (the file just isn't code-signed).
 3. **Install → Finish.** The launcher opens by itself; its shortcuts are in the Start menu and, if you ticked it, on the desktop.
 
@@ -74,7 +77,7 @@ No administrator rights needed: it installs for your user only, in `%LOCALAPPDAT
 Win+X → Terminal, then:
 
 ```powershell
-irm https://github.com/gerdaroot/Horizon-Offline-Launcher/releases/latest/download/install.ps1 | iex
+irm https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases/latest/download/install.ps1 | iex
 ```
 
 It puts the launcher in the same place, with the same shortcuts.
@@ -83,7 +86,7 @@ It puts the launcher in the same place, with the same shortcuts.
 ### Linux and macOS
 
 ```sh
-curl -fsSL https://github.com/gerdaroot/Horizon-Offline-Launcher/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases/latest/download/install.sh | sh
 ```
 
 Then start it with `horizon-offline-launcher`. On Linux it adds itself to the applications menu.
@@ -170,7 +173,7 @@ The game and nearly all of the code are [Horizon](https://github.com/horizon-rus
 **Horizon Offline Launcher** — лаунчер для [Horizon](https://github.com/horizon-rust/horizon) (Minecraft: Java Edition 26.3, переписанный на Rust) без обязательного аккаунта Microsoft и с выбором своего jar.
 
 <p>
-  <a href="https://github.com/gerdaroot/Horizon-Offline-Launcher/releases/latest/download/Horizon-Offline-Launcher-Setup.exe"><b>Скачать для Windows</b></a> ·
+  <a href="https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases/latest/download/Horizon-Offline-Launcher-Setup.exe"><b>Скачать для Windows</b></a> ·
   <a href="#установка">Установка</a> ·
   <a href="#первый-запуск">Первый запуск</a> ·
   <a href="#вопросы">Вопросы</a> ·
@@ -195,12 +198,12 @@ The game and nearly all of the code are [Horizon](https://github.com/horizon-rus
 ### Установка
 
 <p align="center">
-  <a href="https://github.com/gerdaroot/Horizon-Offline-Launcher/releases/latest/download/Horizon-Offline-Launcher-Setup.exe"><img src="https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C%20%D0%B4%D0%BB%D1%8F%20Windows-Setup.exe-6C4AE0?style=for-the-badge&logo=windows&logoColor=white" alt="Скачать для Windows"></a>
+  <a href="https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases/latest/download/Horizon-Offline-Launcher-Setup.exe"><img src="https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C%20%D0%B4%D0%BB%D1%8F%20Windows-Setup.exe-6C4AE0?style=for-the-badge&logo=windows&logoColor=white" alt="Скачать для Windows"></a>
 </p>
 
 **Windows**
 
-1. **[Скачайте `Horizon-Offline-Launcher-Setup.exe`](https://github.com/gerdaroot/Horizon-Offline-Launcher/releases/latest/download/Horizon-Offline-Launcher-Setup.exe)**.
+1. **[Скачайте `Horizon-Offline-Launcher-Setup.exe`](https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases/latest/download/Horizon-Offline-Launcher-Setup.exe)**.
 2. **Запустите его.** Если Windows покажет «Windows защитила ваш компьютер», нажмите **«Подробнее» → «Выполнить в любом случае»** (файл просто не подписан сертификатом).
 3. **«Установить» → «Завершить».** Лаунчер откроется сам; ярлыки — в меню «Пуск» и, если отметили галочку, на рабочем столе.
 
@@ -212,7 +215,7 @@ The game and nearly all of the code are [Horizon](https://github.com/horizon-rus
 Win+X → «Терминал», затем:
 
 ```powershell
-irm https://github.com/gerdaroot/Horizon-Offline-Launcher/releases/latest/download/install.ps1 | iex
+irm https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases/latest/download/install.ps1 | iex
 ```
 
 Лаунчер встанет в то же место, с теми же ярлыками.
@@ -221,7 +224,7 @@ irm https://github.com/gerdaroot/Horizon-Offline-Launcher/releases/latest/downlo
 **Linux и macOS:**
 
 ```sh
-curl -fsSL https://github.com/gerdaroot/Horizon-Offline-Launcher/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases/latest/download/install.sh | sh
 ```
 
 После установки лаунчер запускается командой `horizon-offline-launcher`. На Linux он сам добавит себя в меню приложений.

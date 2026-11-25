@@ -24,6 +24,7 @@ pub mod instances;
 pub mod instances_mrpack;
 pub mod java;
 pub mod java_launch;
+pub mod java_share;
 pub mod launch;
 pub mod loaders;
 #[cfg(target_os = "macos")]
@@ -57,6 +58,7 @@ pub mod tailscale;
 pub mod telemetry;
 pub mod themes;
 pub mod uninstall_aside;
+pub mod upnp;
 pub mod update_handoff;
 pub mod update_recovery;
 pub mod wardrobe;

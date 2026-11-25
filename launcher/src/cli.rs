@@ -7,6 +7,7 @@ use horizon_launcher::build_import;
 use horizon_launcher::github_mods;
 use horizon_launcher::i18n::{tr, trf};
 use horizon_launcher::instances;
+use horizon_launcher::java_share;
 use horizon_launcher::loaders;
 use horizon_launcher::native_mods;
 use horizon_launcher::native_status;
@@ -102,6 +103,21 @@ enum ServersCmd {
     },
     /// Take a server off the list (its folder stays)
     Forget { server: String },
+}
+
+/// What `horizon-launcher friends` does.
+#[derive(Subcommand)]
+enum FriendsCmd {
+    /// The addresses to send a friend for a world you opened to LAN (default)
+    Address {
+        /// The instance whose world is open (default: the selected one)
+        #[arg(long)]
+        instance: Option<String>,
+        /// A game folder to look in instead (`logs/latest.log`), for an install no instance
+        /// points at
+        #[arg(long)]
+        home: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -789,6 +805,11 @@ enum Cmd {
         /// the one `account select` picked: several games can play as several accounts at once
         #[arg(long, value_name = "WHO")]
         account: Option<String>,
+    },
+    /// Play with friends: the address of a world you opened to LAN in the game
+    Friends {
+        #[command(subcommand)]
+        action: Option<FriendsCmd>,
     },
     /// Run a dedicated server here; type commands into its console
     Server {
@@ -1480,6 +1501,53 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 }
             }
             println!("{tag} is prepared.");
+        }
+        Cmd::Friends { action } => {
+            match action.unwrap_or(FriendsCmd::Address {
+                instance: None,
+                home: None,
+            }) {
+                FriendsCmd::Address { instance, home } => {
+                    let (name, home) = match home {
+                        Some(home) => (home.display().to_string(), home),
+                        None => {
+                            let instance = match instance {
+                                Some(name) => instances::find(&name)?,
+                                None => instances::selected(),
+                            };
+                            (instance.name, instance.home)
+                        }
+                    };
+                    let log = home.join("logs").join("latest.log");
+                    let (_, port) = java_share::port_after(&log, 0);
+                    let Some(port) = port else {
+                        return Err(format!(
+                            "No world is open to LAN in {name}. In the game: Esc → Open to LAN, \
+                             then run this again."
+                        ));
+                    };
+                    let share = java_share::share(port);
+                    if as_json {
+                        json(serde_json::json!({
+                            "lan": share.lan,
+                            "internet": share.internet,
+                            "note": share.note,
+                        }));
+                        return Ok(());
+                    }
+                    println!("{}", share.lan);
+                    match (&share.internet, &share.note) {
+                        (Some(address), _) => {
+                            println!("{address}");
+                            println!(
+                                "The router forwards this for an hour; run this again to renew it."
+                            );
+                        }
+                        (None, Some(note)) => println!("{note}"),
+                        (None, None) => {}
+                    }
+                }
+            }
         }
         Cmd::Play {
             version,

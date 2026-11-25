@@ -1254,5 +1254,14 @@
   "Found by itself in your launcher's folder. Or pick the {version}.jar file.": "Encontrado solo en la carpeta de tu launcher. O elige el archivo {version}.jar.",
   "Minecraft jar": "Jar de Minecraft",
   "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID).": "Esta versión del launcher no tiene inicio de sesión de Microsoft (HORIZON_MSA_CLIENT_ID).",
-  "Offline launcher {version}": "Launcher sin conexión {version}"
+  "Offline launcher {version}": "Launcher sin conexión {version}",
+  "Play with friends": "Play with friends",
+  "Share my world": "Share my world",
+  "Open it in the game (Esc → Open to LAN), then Share.": "Open it in the game (Esc → Open to LAN), then Share.",
+  "Waiting for your world: in the game, Esc → Open to LAN.": "Waiting for your world: in the game, Esc → Open to LAN.",
+  "Friends anywhere": "Friends anywhere",
+  "Friends on this Wi-Fi": "Friends on this Wi-Fi",
+  "Send this to a friend: their launcher, the box above, Join. If it does not connect, allow Java through Windows Firewall.": "Send this to a friend: their launcher, the box above, Join. If it does not connect, allow Java through Windows Firewall.",
+  "No world was opened to LAN in 10 minutes. In the game: Esc → Open to LAN, then Share again.": "No world was opened to LAN in 10 minutes. In the game: Esc → Open to LAN, then Share again.",
+  "Paste a friend's address": "Paste a friend's address"
 }

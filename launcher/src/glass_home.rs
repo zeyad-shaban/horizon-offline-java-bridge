@@ -5,7 +5,7 @@ use super::*;
 use crate::glass_ui::{self as ui, white};
 use gpui::deferred;
 use horizon_theme::glass::{fill, ink, radius};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 /// Play, the version and the big icons are this tall (`h-14`).
 const TALL: f32 = 56.;
@@ -92,7 +92,7 @@ impl Launcher {
                 )
                 .child(self.glass_join_friend(tag, false, cx))
         };
-        div()
+        let head = div()
             .flex()
             .flex_col()
             .min_w_0()
@@ -100,7 +100,214 @@ impl Launcher {
             .child(self.edition_tabs(java.is_some(), cx))
             .child(self.home_title(cx))
             .child(self.played_text(cx))
-            .child(actions)
+            .child(actions);
+        match java.is_some() {
+            true => head.child(self.glass_share_row(cx)),
+            false => head,
+        }
+    }
+
+    /// The "Play with friends" row under Home's buttons, for a Java instance: share the world it
+    /// opened to LAN, and name the address a friend pastes into the field above.
+    fn glass_share_row(&mut self, cx: &mut Context<Self>) -> Div {
+        let t = self.theme;
+        let copied = self
+            .share
+            .copied
+            .is_some_and(|at| at.elapsed() < Duration::from_secs(2));
+        let row = div()
+            .mt(px(16.))
+            .flex()
+            .items_center()
+            .gap(px(10.))
+            .min_w_0();
+        match std::mem::take(&mut self.share.phase) {
+            SharePhase::Off => {
+                self.share.phase = SharePhase::Off;
+                row.child(ui::icon("user-add-01", 17., white(ink::NOTE)))
+                    .child(
+                        ui::text(13., FontWeight::MEDIUM, ink::NOTE)
+                            .child(tr("Play with friends")),
+                    )
+                    .child(
+                        ui::quiet("share-world", tr("Share my world"), 32., &t).on_click(
+                            cx.listener(|this, _: &ClickEvent, _, cx| {
+                                this.share_start(cx);
+                                cx.notify();
+                            }),
+                        ),
+                    )
+                    .child(
+                        ui::text(12., FontWeight::NORMAL, ink::QUIET)
+                            .max_w(px(560.))
+                            .child(tr("Open it in the game (Esc → Open to LAN), then Share.")),
+                    )
+            }
+            SharePhase::Waiting => {
+                self.share.phase = SharePhase::Waiting;
+                row.child(ui::icon("user-add-01", 17., white(ink::NOTE)))
+                    .child(
+                        ui::text(13., FontWeight::MEDIUM, ink::NOTE)
+                            .max_w(px(520.))
+                            .child(tr(
+                                "Waiting for your world: in the game, Esc → Open to LAN.",
+                            )),
+                    )
+                    .child(ui::quiet("share-stop", tr("Stop"), 32., &t).on_click(
+                        cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.share_stop();
+                            cx.notify();
+                        }),
+                    ))
+            }
+            SharePhase::Failed(error) => {
+                self.share.phase = SharePhase::Failed(error.clone());
+                row.child(ui::icon("link-01", 17., white(ink::NOTE)))
+                    .child(
+                        ui::text(12., FontWeight::NORMAL, ink::QUIET)
+                            .max_w(px(680.))
+                            .child(error),
+                    )
+                    .child(ui::quiet("share-retry", tr("Try again"), 32., &t).on_click(
+                        cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.share_start(cx);
+                            cx.notify();
+                        }),
+                    ))
+                    .child(ui::quiet("share-stop", tr("Stop"), 32., &t).on_click(
+                        cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.share_stop();
+                            cx.notify();
+                        }),
+                    ))
+            }
+            SharePhase::Ready(share) => {
+                self.share.phase = SharePhase::Ready(share.clone());
+                let (address, icon, label) = match &share.internet {
+                    Some(address) => (address.clone(), "globe-02", tr("Friends anywhere")),
+                    None => (share.lan.clone(), "computer", tr("Friends on this Wi-Fi")),
+                };
+                let copy_me = address.clone();
+                let after = share.internet.clone().or_else(|| Some(share.lan.clone()));
+                let note = match (&share.internet, &share.note) {
+                    (Some(_), _) => tr(
+                        "Send this to a friend: their launcher, the box above, Join. If it does \
+                         not connect, allow Java through Windows Firewall.",
+                    )
+                    .to_string(),
+                    (None, Some(note)) => note.clone(),
+                    (None, None) => String::new(),
+                };
+                let mut row = row
+                    .child(ui::icon(icon, 17., white(ink::NOTE)))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .min_w_0()
+                            .child(ui::text(12., FontWeight::NORMAL, ink::QUIET).child(label))
+                            .child(
+                                ui::text(16., FontWeight::MEDIUM, ink::FULL)
+                                    .child(copy_me.clone()),
+                            ),
+                    )
+                    .child(
+                        ui::icon_button(
+                            "share-copy",
+                            if copied { "tick-02" } else { "copy-01" },
+                            32.,
+                            16.,
+                            8.,
+                            false,
+                            &t,
+                        )
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            if let Some(address) = after.clone() {
+                                copy_to_clipboard(
+                                    cx,
+                                    gpui::ClipboardItem::new_string(address),
+                                );
+                                this.share.copied = Some(Instant::now());
+                            }
+                            cx.notify();
+                        })),
+                    )
+                    .child(ui::quiet("share-stop", tr("Stop"), 32., &t).on_click(
+                        cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.share_stop();
+                            cx.notify();
+                        }),
+                    ));
+                if !note.is_empty() {
+                    row = row.child(
+                        ui::text(12., FontWeight::NORMAL, ink::QUIET)
+                            .max_w(px(520.))
+                            .child(note),
+                    );
+                }
+                row
+            }
+        }
+    }
+
+    /// Watches the game's log for the world opened to LAN, then forwards its port.
+    fn share_start(&mut self, cx: &mut Context<Self>) {
+        let Some(home) = self.selected_instance().map(|i| i.home.clone()) else {
+            return;
+        };
+        self.share.generation = self.share.generation.wrapping_add(1);
+        let generation = self.share.generation;
+        self.share.phase = SharePhase::Waiting;
+        self.share.copied = None;
+        cx.spawn(async move |this, cx| {
+            let log = home.join("logs").join("latest.log");
+            let mut offset = std::fs::metadata(&log).map(|m| m.len()).unwrap_or(0);
+            let started = Instant::now();
+            // The game writes the port when the player opens the world; until then, look every
+            // couple of seconds.
+            let port = loop {
+                let (next, port) = java_share::port_after(&log, offset);
+                offset = next;
+                if port.is_some() {
+                    break port;
+                }
+                if started.elapsed() > Duration::from_secs(600) {
+                    break None;
+                }
+                cx.background_executor()
+                    .timer(Duration::from_secs(2))
+                    .await;
+            };
+            let phase = match port {
+                Some(port) => {
+                    let share = cx
+                        .background_executor()
+                        .spawn(async move { java_share::share(port) })
+                        .await;
+                    SharePhase::Ready(share)
+                }
+                None => SharePhase::Failed(tr(
+                    "No world was opened to LAN in 10 minutes. In the game: Esc → Open to LAN, then Share again.",
+                ).to_string()),
+            };
+            let _ = this.update(cx, |this, cx| {
+                if this.share.generation == generation {
+                    this.share.phase = phase;
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
+
+    /// Stops sharing: the task stops watching, and the router's mapping goes away.
+    fn share_stop(&mut self) {
+        self.share.generation = self.share.generation.wrapping_add(1);
+        if let SharePhase::Ready(mut share) = std::mem::take(&mut self.share.phase) {
+            std::thread::spawn(move || share.forget_mapping());
+        }
+        self.share.phase = SharePhase::Off;
+        self.share.copied = None;
     }
 
     /// The edition tabs (`Tabs`, size `sm`): the instance's own lit. An instance's edition is
@@ -823,6 +1030,16 @@ impl Launcher {
         let focused = self.friend_focused;
         let join_label = tr("Join");
         let pr = friend_code_padding_right(join_label);
+        // A Java instance joins an address (a shared world or any server); a Horizon one joins
+        // an invite code.
+        let java = self
+            .selected_instance()
+            .is_some_and(|i| i.java.is_some());
+        let placeholder = match (java, wide) {
+            (true, _) => tr("Paste a friend's address"),
+            (false, true) => "Paste a friend's invite code",
+            (false, false) => "Paste an invite code",
+        };
         let field = div()
             .id("friend-code")
             .track_focus(&self.friend_focus)
@@ -851,11 +1068,7 @@ impl Launcher {
                         focused,
                         false,
                         false,
-                        if wide {
-                            "Paste a friend's invite code"
-                        } else {
-                            "Paste an invite code"
-                        },
+                        placeholder,
                     )),
             )
             .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
@@ -873,8 +1086,15 @@ impl Launcher {
                 cx.notify();
             }));
         let field = line_edit::mouse(field, cx, |this| &mut this.friend_code);
-        let valid = horizon_friends::invite::parse(self.friend_code.text()).is_some();
-        let can = valid && (tag.is_empty() || self.can_start(tag));
+        let valid = match java {
+            true => java_share::address(self.friend_code.text()).is_some(),
+            false => horizon_friends::invite::parse(self.friend_code.text()).is_some(),
+        };
+        let can = valid
+            && match java {
+                true => self.can_join_selected(),
+                false => tag.is_empty() || self.can_start(tag),
+            };
         let join = ui::quiet("join-friend", join_label, 40., &t);
         let join = if can {
             join.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {

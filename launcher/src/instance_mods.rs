@@ -323,12 +323,27 @@ impl Launcher {
         let home = self.instance_mods.home.clone().unwrap_or_default();
         let java_instance = self.selected_instance().is_some_and(|i| i.java.is_some());
         match &row.entry {
-            Some(e) if !java_instance => self.mods_switch(e),
-            _ => {
-                self.mods.message = switch_jar(&home, &row.file, !row.on).err().map(Err);
+            Some(e) if !java_instance => {
+                self.mods_switch(e);
+                self.instance_mods.invalidate();
             }
+            _ => match switch_jar(&home, &row.file, !row.on) {
+                Ok(()) => {
+                    self.mods.message = None;
+                    // Flip the row where it stands: invalidating the list would empty the page
+                    // and read every jar again, which is the flash this avoids.
+                    if let Some(r) = self
+                        .instance_mods
+                        .list
+                        .iter_mut()
+                        .find(|r| r.file == row.file)
+                    {
+                        r.on = !r.on;
+                    }
+                }
+                Err(e) => self.mods.message = Some(Err(e)),
+            },
         }
-        self.instance_mods.invalidate();
     }
 
     /// The Mods tab: its buttons (beside the tabs) and the list.

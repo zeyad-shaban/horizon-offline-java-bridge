@@ -68,6 +68,31 @@ horizon-launcher instance curseforge .\MyPack-1.4.2.zip
 horizon-launcher instance curseforge .\MyPack-1.4.2.zip --home "$env:APPDATA\.minecraft"
 ```
 
+### 3. Play with friends: one address, no VPN
+
+A world opened to LAN (`Esc` → Open to LAN) listens on a port only your own network reaches.
+Home's **Play with friends** row (a Java instance) closes that gap:
+
+- **Share my world** watches `logs/latest.log` for the port the game picked, asks the router to
+  forward TCP 25565 to it, and shows the address to send: `102.186.255.46:25565`. The router side
+  is `launcher/src/upnp.rs` (SSDP discovery, `AddPortMapping`, `GetExternalIPAddress`); **Stop**
+  deletes the mapping, which also expires by itself after an hour.
+- **Joining** is the field that already took invite codes. With a Java instance selected it takes
+  `host[:port]` instead, and Join starts the game straight into that world
+  (`--quickPlayMultiplayer`). `horizon-launcher play --server host:port` does the same from a
+  terminal, and `horizon-launcher friends address` prints this machine's two addresses.
+- **No UPnP** (router setting off, or a firewall): the row says so and keeps the LAN address
+  (`192.168.1.2:54321`) usable; forward TCP 25565 to this computer in the router, or use a VPN
+  such as Radmin VPN or Tailscale.
+- **Carrier-grade NAT** (the router's outside address is private, `100.64/10` and the like) can't
+  be forwarded at all, and the row says that too.
+
+Same Wi-Fi needs none of this: friends join the LAN address and nothing is forwarded.
+
+LAN worlds are `online-mode=false`, so offline names join. Give each player their own name
+(Accounts → Offline names) or the second one is kicked as a duplicate. Skins stay vanilla's
+default Steve/Alex offline: the game only fetches skins from Mojang's session server.
+
 ## Building it for Windows
 
 Releases live in [zeyad-shaban/horizon-offline-java-bridge](https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases):
