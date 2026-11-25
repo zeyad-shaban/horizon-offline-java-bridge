@@ -241,6 +241,25 @@ enum InstanceCmd {
         /// The loader's version (default: its newest stable one)
         #[arg(long, requires = "loader")]
         loader_version: Option<String>,
+        /// Play in a game folder you already have (your `.minecraft`, worlds and mods and all)
+        /// instead of a new one; deleting the instance leaves that folder alone
+        #[arg(long, requires = "minecraft")]
+        home: Option<PathBuf>,
+        /// With --home: where `versions/`, `libraries/` and `assets/` are, if not that folder
+        #[arg(long, requires = "home")]
+        files: Option<PathBuf>,
+    },
+    /// Import a CurseForge modpack zip as a Java instance: its required mods come from
+    /// CurseForge's CDN, no account and no API key
+    Curseforge {
+        /// The pack's zip, as CurseForge's Download button gives it
+        zip: PathBuf,
+        /// The instance's name (default: the pack's)
+        #[arg(long)]
+        name: Option<String>,
+        /// Play in a game folder you already have (your `.minecraft`) instead of a new one
+        #[arg(long)]
+        home: Option<PathBuf>,
     },
     /// The versions of Minecraft: Java Edition a Java instance can play, the newest first
     Versions {
@@ -2935,6 +2954,8 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             minecraft: Some(version),
             loader,
             loader_version,
+            home,
+            files,
             ..
         } => {
             let versions = horizon_launcher::minecraft_versions::load()?;
@@ -2943,13 +2964,30 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             let loader = loader
                 .map(|kind| loaders::choose(&kind, id, loader_version.as_deref()))
                 .transpose()?;
-            let made = instances::create_java(&name, id)?;
-            match loader {
-                Some(loader) => changed(instances::edit(&made.id, |m| {
-                    m.java.get_or_insert_with(Default::default).loader = Some(loader)
-                })?),
-                None => changed(made),
-            }
+            let made = match home {
+                Some(home) => {
+                    instances::create_java_at(&name, id, &home, files.as_deref(), loader)?
+                }
+                None => {
+                    let made = instances::create_java(&name, id)?;
+                    match loader {
+                        Some(loader) => instances::edit(&made.id, |m| {
+                            m.java.get_or_insert_with(Default::default).loader = Some(loader)
+                        })?,
+                        None => made,
+                    }
+                }
+            };
+            changed(made)
+        }
+        InstanceCmd::Curseforge { zip, name, home } => {
+            let made = horizon_launcher::curseforge::import(
+                &zip,
+                name.as_deref(),
+                home.as_deref(),
+                &|line| println!("{line}"),
+            )?;
+            changed(made)
         }
         InstanceCmd::Loader {
             instance,

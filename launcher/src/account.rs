@@ -2446,7 +2446,31 @@ pub fn java_player() -> Result<crate::java_launch::Player, String> {
     if let Err(e) = accounts.save() {
         eprintln!("Horizon: the accounts are not saved: {e}");
     }
-    player
+    // No account that owns the game: an offline name plays, as Horizon's own game plays offline.
+    // The real game takes the name and the UUID vanilla derives from it, and no token: single
+    // player and servers that let players without an account in work; online-mode servers don't.
+    Ok(player.unwrap_or_else(|_| offline_java_player(&accounts)))
+}
+
+/// An offline name as the real game takes it: the UUID vanilla derives from the name
+/// (`OfflinePlayer:<name>`), the same everywhere, and an empty token.
+fn offline_java_player(accounts: &Accounts) -> crate::java_launch::Player {
+    let name = accounts
+        .offline_selected
+        .clone()
+        .or_else(|| accounts.offline.first().cloned())
+        .unwrap_or_else(|| crate::backend::Settings::load().name);
+    let name = if name.trim().is_empty() {
+        "Player".to_string()
+    } else {
+        name
+    };
+    crate::java_launch::Player {
+        uuid: format!("{:032x}", horizon_protocol::crypto::offline_uuid(&name)),
+        name,
+        token: "0".into(),
+        xuid: String::new(),
+    }
 }
 
 fn java_player_with(

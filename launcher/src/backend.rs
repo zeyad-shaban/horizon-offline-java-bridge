@@ -2161,30 +2161,24 @@ pub fn java_game(
         )
     })?;
     let player = account::java_player()?;
-    let minecraft = data_dir().join("minecraft");
+    let minecraft = game
+        .files
+        .clone()
+        .unwrap_or_else(|| data_dir().join("minecraft"));
     let id = mojang::relative(&game.minecraft)?;
     let natives = minecraft.join("natives").join(&id);
-    // Each version and loader profile is fetched once; it then starts offline too.
-    let downloaded = |id: &str| -> Result<PathBuf, String> {
-        Ok(minecraft
-            .join("versions")
-            .join(mojang::relative(id)?)
-            .join(".downloaded"))
-    };
-    let marker = downloaded(&game.minecraft)?;
-    if !marker.is_file() {
-        let listed = crate::minecraft_versions::load()?;
-        let version = listed.find(&game.minecraft)?;
-        download_version_for_owner(&version.id, &version.sha1, log)?;
-        fs::write(&marker, "").map_err(|e| format!("{}: {e}", marker.display()))?;
-    }
-    // The Java the game needs, which also runs a loader's installer.
+    // The version (its file and client jar) and the loader profile are fetched once; after that
+    // the game starts offline too.
     let file = |id: &str| -> Result<PathBuf, String> {
         Ok(minecraft
             .join("versions")
             .join(mojang::relative(id)?)
             .join(format!("{id}.json")))
     };
+    if !version_ready(&minecraft, &game.minecraft)? {
+        seed_version(&minecraft, &game.minecraft, log)?;
+    }
+    // The Java the game needs, which also runs a loader's installer.
     let vanilla = crate::java_launch::read(&file(&game.minecraft)?)?;
     let need = crate::java::Need::of(&crate::java_launch::resolve(vanilla, &minecraft)?);
     let found = crate::java::pick(
@@ -2203,8 +2197,7 @@ pub fn java_game(
     let mut start = game.minecraft.clone();
     if let Some(loader) = &game.loader {
         start = loader.kind.profile_id(&loader.version, &game.minecraft);
-        let marker = downloaded(&start)?;
-        if !marker.is_file() {
+        if !file(&start)?.is_file() {
             start = crate::loaders::install(
                 loader,
                 &game.minecraft,
@@ -2213,7 +2206,6 @@ pub fn java_game(
                 &get_bytes,
                 log,
             )?;
-            fs::write(downloaded(&start)?, "").map_err(|e| e.to_string())?;
         }
     }
     let version =
@@ -2237,6 +2229,81 @@ pub fn java_game(
             server,
         },
     )
+}
+
+/// Whether `minecraft` holds version `id` ready to start: its version file, and its client jar.
+fn version_ready(minecraft: &Path, id: &str) -> Result<bool, String> {
+    let dir = minecraft.join("versions").join(mojang::relative(id)?);
+    Ok(dir.join(format!("{id}.json")).is_file() && dir.join(format!("{id}.jar")).is_file())
+}
+
+/// Makes `minecraft` hold version `id` ready to start, in the official launcher's layout: the
+/// version file from Mojang (public launcher metadata, checked against its sha1) and the client
+/// jar from another launcher's copy of the same file, checked against the sha1 the version file
+/// pins. Nothing is downloaded for a folder the player's own launcher keeps: a client jar that
+/// launcher doesn't have is a version it never installed.
+fn seed_version(minecraft: &Path, id: &str, log: &dyn Fn(String)) -> Result<(), String> {
+    let dir = minecraft.join("versions").join(mojang::relative(id)?);
+    let manifest = dir.join(format!("{id}.json"));
+    let client = dir.join(format!("{id}.jar"));
+    if !manifest.is_file() {
+        let listed = crate::minecraft_versions::load()?;
+        let version = listed.find(id)?;
+        log(format!(
+            "Fetching Minecraft {}'s version file from Mojang",
+            version.id
+        ));
+        let text = get_bytes(&version.url)?;
+        if crate::sources::sha1_hex(&text) != version.sha1 {
+            return Err(format!(
+                "Mojang's {} version file failed its checksum.",
+                version.id
+            ));
+        }
+        fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        fs::write(&manifest, &text).map_err(|e| format!("{}: {e}", manifest.display()))?;
+    }
+    if client.is_file() {
+        return Ok(());
+    }
+    let text = fs::read(&manifest).map_err(|e| format!("{}: {e}", manifest.display()))?;
+    let json: Value = serde_json::from_slice(&text)
+        .map_err(|e| format!("{}: {e}", manifest.display()))?;
+    let want = json["downloads"]["client"]["sha1"].as_str().unwrap_or_default();
+    if let Some(jar) = minecraft_folders()
+        .iter()
+        .flat_map(|folder| version_jars(folder))
+        .find(|jar| crate::sources::sha1_file(jar).as_deref() == Some(want))
+    {
+        log(format!(
+            "Copying the Minecraft {id} client jar from {}",
+            jar.display()
+        ));
+        fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        fs::copy(&jar, &client).map_err(|e| format!("{}: {e}", client.display()))?;
+        return Ok(());
+    }
+    if minecraft != data_dir().join("minecraft") {
+        return Err(format!(
+            "No launcher here has Minecraft {id}'s client jar: start {id} once in the launcher \
+             this folder belongs to, or let this instance keep its own files (no --files)."
+        ));
+    }
+    let version = crate::minecraft_versions::load()?.find(id)?.clone();
+    download_version_for_owner(&version.id, &version.sha1, log)
+}
+
+/// Every `versions/<id>/<id>.jar` a launcher folder holds.
+fn version_jars(folder: &Path) -> Vec<PathBuf> {
+    fs::read_dir(folder.join("versions"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.is_dir())
+        .filter_map(|p| Some(p.join(format!("{}.jar", p.file_name()?.to_str()?))))
+        .filter(|p| p.is_file())
+        .collect()
 }
 
 /// What [`download_for_owner`] does with the owner gate's answer: Mojang's files only for its

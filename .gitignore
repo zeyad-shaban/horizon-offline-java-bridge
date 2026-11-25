@@ -35,3 +35,6 @@
 
 # Release-only compiled original exporter bundle.
 /exporters/
+
+# Reference clones of the repositories this fork mixes (not part of it).
+/refs/

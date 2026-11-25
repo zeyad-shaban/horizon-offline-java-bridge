@@ -159,6 +159,10 @@ pub struct Meta {
     /// ([`switch`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub java_kept: Option<JavaGame>,
+    /// Its game folder, when it is not the launcher's `instances/<slug>/`: a `.minecraft` the
+    /// player already plays ([`create_java_at`]). Deleting the instance leaves that folder alone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub home: Option<PathBuf>,
 }
 
 /// A Minecraft: Java Edition instance: the real game of one version, with the Java it runs on
@@ -182,6 +186,10 @@ pub struct JavaGame {
     /// The game window's size, width then height; none: the game's own 854×480.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub window: Option<(u32, u32)>,
+    /// Where `versions/`, `libraries/` and `assets/` are: the player's own launcher install.
+    /// None: the launcher's own download, in its data folder.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub files: Option<PathBuf>,
 }
 
 impl Instance {
@@ -353,6 +361,7 @@ fn list_in(game_home: &Path, data: &Path) -> Vec<Instance> {
                     .map(|s| UNIX_EPOCH + Duration::from_secs(s)),
                 launch: meta.launch,
                 java: meta.java,
+                home: meta.home.unwrap_or_else(|| home.clone()),
                 id,
                 kind,
                 work,
@@ -489,6 +498,68 @@ pub fn create_java(name: &str, minecraft: &str) -> Result<Instance, String> {
         None,
         Some(minecraft),
     )
+}
+
+/// Creates a Minecraft: Java Edition instance that plays in `home` — the player's own
+/// `.minecraft`, worlds, options and mods and all — instead of a fresh folder of its own, and
+/// takes `versions/`, `libraries/` and `assets/` from `files` (by default `home`).
+///
+/// The launcher still keeps a folder of its own for the instance (its picture, its metadata), so
+/// deleting the instance leaves the game folder alone: only that folder goes to the Trash.
+pub fn create_java_at(
+    name: &str,
+    minecraft: &str,
+    home: &Path,
+    files: Option<&Path>,
+    loader: Option<crate::loaders::Loader>,
+) -> Result<Instance, String> {
+    let game_home = backend::game_home();
+    let data = backend::data_dir();
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("An instance needs a name.".into());
+    }
+    if !home.is_dir() {
+        return Err(format!(
+            "{}: there is no Minecraft folder there.",
+            home.display()
+        ));
+    }
+    let all = list_in(&game_home, &data);
+    if all.iter().any(|i| i.name.eq_ignore_ascii_case(name)) {
+        return Err(name_taken(name));
+    }
+    let base = modpacks::slug(name);
+    let taken = |s: &str| s == DEFAULT || game_home.join(OWN).join(s).exists();
+    let slug = (1..)
+        .map(|n| {
+            if n == 1 {
+                base.clone()
+            } else {
+                format!("{base}-{n}")
+            }
+        })
+        .find(|s| !taken(s))
+        .unwrap();
+    let work = game_home.join(OWN).join(&slug);
+    fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
+    let mut store = Store::load(&data);
+    store.instances.insert(
+        slug.clone(),
+        Meta {
+            name: Some(name.to_string()),
+            java: Some(JavaGame {
+                minecraft: minecraft.to_string(),
+                files: Some(files.unwrap_or(home).to_path_buf()),
+                loader,
+                ..JavaGame::default()
+            }),
+            home: Some(home.to_path_buf()),
+            ..Meta::default()
+        },
+    );
+    store.save(&data)?;
+    find_in(&list_in(&game_home, &data), &slug)
 }
 
 /// What creating or renaming an instance says when another already has `name`.
