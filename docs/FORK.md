@@ -25,6 +25,13 @@ account that owns it and gave the instance an empty folder. Both are gone:
   reads the version file from Mojang (public metadata, sha1-checked) and copies the client jar
   from the launcher folder that already has it (sha1-checked). Nothing of your install is moved;
   only `versions/<version>/` gains the two files a launcher expects.
+- `backend::fetch_libraries` fills in the libraries the classpath names but the folder lacks, from
+  the public host each version file names (`libraries.minecraft.net`, or the loader's Maven), so an
+  install another launcher keeps its libraries for still starts here.
+- `java_launch::library_path`/`library_url` read a library named by its Maven coordinates
+  (`net.fabricmc:fabric-loader:0.20.1` with a `url` and no `downloads`), which is how Fabric,
+  Quilt and Forge profiles name theirs — without it the loader jar itself was missing from the
+  classpath.
 - Deleting the instance takes the launcher's own folder only, never your `.minecraft`.
 
 ```powershell
@@ -36,6 +43,10 @@ horizon-launcher instance select Mine
 horizon-launcher play
 ```
 
+In the launcher's own New instance dialog the same thing is a click: pick Modded (or Vanilla),
+Minecraft 26.3, then the "Play in my .minecraft" row under Game folder (`JavaChoice::play_in`). The
+row appears when `backend::default_minecraft_dir` finds an install, and only for a new instance.
+
 The Fabric loader version is the one its metadata service calls newest for that Minecraft
 version; pin another one with `--loader-version`, or set it later with
 `horizon-launcher instance loader Mine fabric --version <v>`.
@@ -45,7 +56,7 @@ version; pin another one with `--loader-version`, or set it later with
 `curseforge::import` reads a pack's `manifest.json` (Minecraft version, loader, required files),
 makes a Java instance for it, and fetches every required jar from CurseForge's CDN. The pack's
 `overrides/` and `client-overrides/` files (configs, quests, resource packs) land in the instance's
-game folder.
+game folder; in an existing install your `options.txt`, `servers.dat` and `saves/` are left alone.
 
 No API key is needed: CurseForge's official API wants one, but its public website API answers the
 same two ids (`projectID`/`fileID`) and the CDN path is built from the file id and name. Optional
@@ -56,6 +67,14 @@ horizon-launcher instance curseforge .\MyPack-1.4.2.zip
 # or into your own install:
 horizon-launcher instance curseforge .\MyPack-1.4.2.zip --home "$env:APPDATA\.minecraft"
 ```
+
+## Building it for Windows
+
+`pack.ps1` builds the release launcher and packs `dist/horizon-launcher-windows-x64.zip`
+(`horizon-launcher.exe`, `install.ps1`, `README-FIRST.txt`); `install.ps1 -Exe` installs from that
+folder, without administrator rights, and creates the Start menu and desktop shortcuts.
+`packaging/windows/setup.iss` (Inno Setup 6) makes the `Horizon-Offline-Launcher-Setup.exe` the
+upstream workflow ships, for whoever has Inno Setup.
 
 ## What is not done yet
 

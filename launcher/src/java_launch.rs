@@ -212,6 +212,39 @@ fn resolve_from(version: Value, minecraft: &Path, seen: &mut Vec<String>) -> Res
     Ok(merged)
 }
 
+/// A library's file under `libraries/`: the path its version file pins, or the one its Maven
+/// `name` gives — Fabric, Quilt and Forge profiles name their libraries that way
+/// (`net.fabricmc:fabric-loader:0.20.1`, with a `url` and no `downloads`).
+pub fn library_path(library: &Value) -> Option<String> {
+    match library["downloads"]["artifact"]["path"].as_str() {
+        Some(path) => Some(path.to_string()),
+        None => crate::sources::maven_path(library["name"].as_str()?),
+    }
+}
+
+/// Where a library's file comes from: the URL its version file pins, or its Maven repository
+/// (`url`, else Maven Central, as the official launcher reads it).
+pub fn library_url(library: &Value) -> Option<String> {
+    if let Some(url) = library["downloads"]["artifact"]["url"].as_str() {
+        return Some(url.to_string());
+    }
+    let repository = library["url"]
+        .as_str()
+        .unwrap_or("https://repo1.maven.org/maven2/");
+    Some(format!(
+        "{}/{}",
+        repository.trim_end_matches('/'),
+        library_path(library)?
+    ))
+}
+
+/// The sha1 a library pins, when its version file has one: a Maven library often has none.
+pub fn library_sha1(library: &Value) -> Option<&str> {
+    library["downloads"]["artifact"]["sha1"]
+        .as_str()
+        .or_else(|| library["sha1"].as_str())
+}
+
 /// The libraries this system uses, then the client jar (a loader's: the game's, `jar`).
 pub fn classpath(version: &Value, minecraft: &Path, os: &str) -> Result<Vec<PathBuf>, String> {
     let id = version["id"].as_str().ok_or("The version file has no id")?;
@@ -221,8 +254,8 @@ pub fn classpath(version: &Value, minecraft: &Path, os: &str) -> Result<Vec<Path
         if !allowed(&library["rules"], os, &[]) {
             continue;
         }
-        if let Some(path) = library["downloads"]["artifact"]["path"].as_str() {
-            let path = minecraft.join("libraries").join(mojang::relative(path)?);
+        if let Some(path) = library_path(library) {
+            let path = minecraft.join("libraries").join(mojang::relative(&path)?);
             if !paths.contains(&path) {
                 paths.push(path);
             }

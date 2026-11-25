@@ -38,3 +38,7 @@
 
 # Reference clones of the repositories this fork mixes (not part of it).
 /refs/
+
+# Windows build output (pack.ps1: the packed launcher, and a build's log).
+/dist/
+/release-build.log

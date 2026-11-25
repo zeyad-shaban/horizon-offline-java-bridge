@@ -23,6 +23,20 @@
   <img src="docs/media/launcher-play.webp" alt="The launcher's Home page" width="80%">
 </p>
 
+> **This fork** — `horizon-offline-java-bridge` — adds, on top of the offline launcher:
+>
+> - **Real Minecraft: Java Edition, offline.** A Java instance plays your own `%APPDATA%\.minecraft`
+>   in place (worlds, options and `mods/` untouched), with an offline name and no Microsoft account.
+> - **CurseForge modpacks.** `instance curseforge <pack>.zip` imports a pack's version, loader and
+>   required jars from CurseForge's CDN — no API key, no account.
+> - **The Java bridge** (Fabric jars inside Horizon) is wired next; [`docs/FORK.md`](docs/FORK.md)
+>   says what it needs and what works today.
+>
+> ```powershell
+> horizon-launcher instance create Mine --minecraft 26.3 --loader fabric --home "$env:APPDATA\.minecraft"
+> horizon-launcher instance select Mine; horizon-launcher play
+> ```
+
 ## What it is
 
 [Horizon](https://github.com/horizon-rust/horizon) is Minecraft: Java Edition 26.3 rewritten in Rust: its own renderer, world, mobs and redstone, compatible with vanilla worlds. This repository is a fork of it where:

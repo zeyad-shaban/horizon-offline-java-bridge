@@ -34,6 +34,9 @@ pub(super) struct JavaChoice {
     pub(super) loader_version: Option<String>,
     /// The loader's versions for the chosen Minecraft version, asked of its service once.
     pub(super) loader_versions: LoaderVersions,
+    /// The game folder it plays in, when it is one the player already has (their `.minecraft`,
+    /// worlds and mods and all) instead of a new folder of its own.
+    pub(super) play_in: Option<std::path::PathBuf>,
 }
 
 /// A loader's versions for one Minecraft version, as the dialog has them.
@@ -68,6 +71,7 @@ impl Default for JavaChoice {
             old: false,
             loader_version: None,
             loader_versions: LoaderVersions::NotAsked,
+            play_in: None,
         }
     }
 }
@@ -429,10 +433,51 @@ impl Launcher {
                     .child(self.loader_version_list(&choice, cx));
             }
         }
-        rows.child(shell::text(night::CAPTION, c(n.muted)).child(
+        // Playing in a folder the player already has, their `.minecraft` and its mods, is offered
+        // when one is there: a pack or a setup they already made needs no fresh folder. Only for a
+        // new instance: editing one keeps the folder it has.
+        let editing = self.instances.dialog.as_ref().and_then(|d| d.editing.clone());
+        if let Some(folder) = editing.is_none().then(backend::default_minecraft_dir).flatten() {
+            let inside = choice.play_in.is_some();
+            let label = match &choice.play_in {
+                Some(p) => format!("{} · {} · {}", tr("Your .minecraft"), p.display(), tr("click to play in a new folder")),
+                None => format!(
+                    "{} · {} · {}",
+                    tr("Play in my .minecraft"),
+                    folder.display(),
+                    tr("worlds, options and mods stay there")
+                ),
+            };
+            rows = rows.child(heading("Game folder")).child(
+                shell::action(
+                    "play-in-minecraft",
+                    if inside { Action::Raised } else { Action::Quiet },
+                    &t,
+                )
+                .h(px(26.))
+                .px(px(10.))
+                .min_w_0()
+                .child(shell::label(label))
+                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                    let folder = folder.clone();
+                    this.change(|j| {
+                        j.play_in = if j.play_in.is_some() {
+                            None
+                        } else {
+                            Some(folder.clone())
+                        }
+                    });
+                    cx.notify();
+                })),
+            );
+        }
+        rows.child(shell::text(night::CAPTION, c(n.muted)).child(if choice.play_in.is_some() {
+            tr("Playing in your .minecraft needs no account: the game runs offline with your own files.")
+                .to_string()
+        } else {
             tr("Play downloads the game from Mojang for your account the first time, with the Java it needs.")
-                .to_string(),
-        ))
+                .to_string()
+        }))
     }
 }
 
@@ -532,13 +577,21 @@ pub(super) fn create_java(
             )
         })
         .transpose()?;
-    let made = instances::create_java(name, minecraft)?;
-    match loader {
-        Some(loader) => instances::edit(&made.id, |m| {
-            m.java.get_or_insert_with(Default::default).loader = Some(loader)
-        }),
-        None => Ok(made),
-    }
+    let made = match &choice.play_in {
+        Some(home) => {
+            instances::create_java_at(name, minecraft, home, None, loader.clone())?
+        }
+        None => {
+            let made = instances::create_java(name, minecraft)?;
+            match loader.clone() {
+                Some(loader) => instances::edit(&made.id, |m| {
+                    m.java.get_or_insert_with(Default::default).loader = Some(loader)
+                })?,
+                None => made,
+            }
+        }
+    };
+    Ok(made)
 }
 
 /// `to`, with the newest stable version of a loader it names without one (asked of its service

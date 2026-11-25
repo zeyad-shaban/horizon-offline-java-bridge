@@ -19,6 +19,10 @@ use std::path::{Path, PathBuf};
 /// What a pack's overrides live under, inside its zip.
 const OVERRIDES: [&str; 2] = ["overrides/", "client-overrides/"];
 
+/// Files of the player, not of a pack: a pack imported into an existing game folder (the
+/// player's own `.minecraft`) leaves them as they are, and its worlds too.
+const PLAYER_FILES: [&str; 4] = ["options.txt", "servers.dat", "servers.dat_old", "optionsof.txt"];
+
 /// A CurseForge modpack's `manifest.json`.
 #[derive(Clone, Debug, Deserialize)]
 pub struct Manifest {
@@ -202,7 +206,9 @@ pub fn import(
         }
     }
     left_off += pack.files.len().saturating_sub(required.len());
-    let unpacked = overrides(zip, &instance.home, log)?;
+    // The player's own settings and worlds stay as they are when the pack lands in a folder
+    // that already has them.
+    let unpacked = overrides(zip, &instance.home, home.is_some(), log)?;
     if left_off > 0 {
         log(format!(
             "{left_off} optional files left out: add the ones you want on its Mods page."
@@ -244,7 +250,12 @@ fn loader_of(loader: &ModLoader) -> Result<crate::loaders::Loader, String> {
 }
 
 /// Every file under the pack's overrides, into `home`; none leaves it.
-fn overrides(zip: &Path, home: &Path, log: &dyn Fn(String)) -> Result<usize, String> {
+fn overrides(
+    zip: &Path,
+    home: &Path,
+    keep_player_files: bool,
+    log: &dyn Fn(String),
+) -> Result<usize, String> {
     let file = fs::File::open(zip).map_err(|e| format!("{}: {e}", zip.display()))?;
     let mut archive =
         zip::ZipArchive::new(file).map_err(|e| format!("{}: {e}", zip.display()))?;
@@ -256,6 +267,11 @@ fn overrides(zip: &Path, home: &Path, log: &dyn Fn(String)) -> Result<usize, Str
         let Some(relative) = OVERRIDES.iter().find_map(|o| name.strip_prefix(o)) else {
             continue;
         };
+        if keep_player_files
+            && (PLAYER_FILES.contains(&relative) || relative.starts_with("saves/"))
+        {
+            continue;
+        }
         let Some(to) = inside(home, relative) else {
             continue;
         };

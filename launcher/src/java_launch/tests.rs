@@ -234,20 +234,26 @@ fn a_loader_profile_plays_on_its_game_version() {
         "mainClass": "net.fabricmc.loader.impl.launch.knot.KnotClient",
         "arguments": {"game": [], "jvm": ["-DFabricMcEmu= net.minecraft.client.main.Main "]},
         "libraries": [
-            {"name": "net.fabricmc:fabric-loader:0.16.9",
-             "downloads": {"artifact": {"path": "net/fabricmc/fabric-loader-0.16.9.jar"}}},
+            {"name": "net.fabricmc:fabric-loader:0.16.9", "url": "https://maven.fabricmc.net/"},
             {"name": "a:common:2", "downloads": {"artifact": {"path": "a/common/2/common-2.jar"}}}
         ]
     });
     let version = resolve(profile, &mc).unwrap();
     assert_eq!(version["id"], "fabric-loader-0.16.9-1.21.4");
     assert_eq!(version["assetIndex"]["id"], "19", "the game's fields stay");
+    // A library the profile names by its Maven coordinates (`url`, no `downloads`) is on the
+    // classpath like any other: Fabric's own loader jar is one, and the game cannot start
+    // without it.
+    assert_eq!(
+        library_url(&version["libraries"][0]).as_deref(),
+        Some("https://maven.fabricmc.net/net/fabricmc/fabric-loader/0.16.9/fabric-loader-0.16.9.jar")
+    );
     let cp = classpath(&version, &mc, "linux").unwrap();
     let lib = |p: &str| mc.join("libraries").join(p);
     assert_eq!(
         cp,
         [
-            lib("net/fabricmc/fabric-loader-0.16.9.jar"),
+            lib("net/fabricmc/fabric-loader/0.16.9/fabric-loader-0.16.9.jar"),
             lib("a/common/2/common-2.jar"),
             lib("a/not-mac/1/not-mac-1.jar"),
             under(&mc, "versions/1.21.4/1.21.4.jar"),

@@ -2459,7 +2459,7 @@ fn offline_java_player(accounts: &Accounts) -> crate::java_launch::Player {
         .offline_selected
         .clone()
         .or_else(|| accounts.offline.first().cloned())
-        .unwrap_or_else(|| crate::backend::Settings::load().name);
+        .unwrap_or_else(|| "Player".to_string());
     let name = if name.trim().is_empty() {
         "Player".to_string()
     } else {

@@ -2197,7 +2197,7 @@ pub fn java_game(
     let mut start = game.minecraft.clone();
     if let Some(loader) = &game.loader {
         start = loader.kind.profile_id(&loader.version, &game.minecraft);
-        if !file(&start)?.is_file() {
+        if !loader_ready(&minecraft, &start) {
             start = crate::loaders::install(
                 loader,
                 &game.minecraft,
@@ -2210,6 +2210,30 @@ pub fn java_game(
     }
     let version =
         crate::java_launch::resolve(crate::java_launch::read(&file(&start)?)?, &minecraft)?;
+    // Every library the classpath names, from the public host its version file names it by: a
+    // game folder another launcher installed keeps its libraries in that launcher's own folder,
+    // so this is what makes such an install start without starting the game there first.
+    if let Err(e) = fetch_libraries(&version, &minecraft, log) {
+        log(format!("Libraries not fetched: {e}"));
+    }
+    // The log4j setup the version file names: without it the game logs to its console only and
+    // says "No configuration found", and nothing reaches `logs/latest.log`.
+    if let Err(e) = fetch_log_config(&version, &minecraft, log) {
+        log(format!("Log configuration not fetched: {e}"));
+    }
+    // A library another launcher cleaned away stops the game before its window: say which.
+    let missing: Vec<PathBuf> = crate::java_launch::classpath(&version, &minecraft, crate::java_launch::os_name())?
+        .into_iter()
+        .filter(|path| !path.is_file())
+        .collect();
+    if let Some(first) = missing.first() {
+        return Err(format!(
+            "Minecraft {start} is missing {} of its files here ({}): start {start} once in the \
+             launcher this folder belongs to, so it fetches them.",
+            missing.len(),
+            first.display()
+        ));
+    }
     let jvm_args: Vec<String> = game.jvm_args.split_whitespace().map(String::from).collect();
     fs::create_dir_all(&instance.home).map_err(|e| format!("{}: {e}", instance.home.display()))?;
     crate::java_launch::command(
@@ -2235,6 +2259,30 @@ pub fn java_game(
 fn version_ready(minecraft: &Path, id: &str) -> Result<bool, String> {
     let dir = minecraft.join("versions").join(mojang::relative(id)?);
     Ok(dir.join(format!("{id}.json")).is_file() && dir.join(format!("{id}.jar")).is_file())
+}
+
+/// Whether `minecraft` holds loader profile `profile` and every library it names: a profile
+/// whose folder is there but whose jars were cleaned away installs again.
+fn loader_ready(minecraft: &Path, profile: &str) -> bool {
+    let file = minecraft
+        .join("versions")
+        .join(profile)
+        .join(format!("{profile}.json"));
+    let Ok(text) = fs::read_to_string(&file) else {
+        return false;
+    };
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return false;
+    };
+    json["libraries"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .all(|library| {
+            crate::java_launch::library_path(library).is_some_and(|path| {
+                minecraft.join("libraries").join(path).is_file()
+            })
+        })
 }
 
 /// Makes `minecraft` hold version `id` ready to start, in the official launcher's layout: the
@@ -2266,9 +2314,8 @@ fn seed_version(minecraft: &Path, id: &str, log: &dyn Fn(String)) -> Result<(), 
     if client.is_file() {
         return Ok(());
     }
-    let text = fs::read(&manifest).map_err(|e| format!("{}: {e}", manifest.display()))?;
-    let json: Value = serde_json::from_slice(&text)
-        .map_err(|e| format!("{}: {e}", manifest.display()))?;
+    let json = read_json(&manifest)
+        .ok_or_else(|| format!("{}: not a version file", manifest.display()))?;
     let want = json["downloads"]["client"]["sha1"].as_str().unwrap_or_default();
     if let Some(jar) = minecraft_folders()
         .iter()
@@ -2290,7 +2337,81 @@ fn seed_version(minecraft: &Path, id: &str, log: &dyn Fn(String)) -> Result<(), 
         ));
     }
     let version = crate::minecraft_versions::load()?.find(id)?.clone();
-    download_version_for_owner(&version.id, &version.sha1, log)
+    download_version_for_owner(&version.id, &version.sha1, log).map(|_| ())
+}
+
+/// Every library file the resolved `version` names on this system's classpath that `minecraft`
+/// lacks, from the public host its version file names it by (Mojang's `libraries.minecraft.net`,
+/// or a loader's own), checked against the sha1 pinned there. A game folder another launcher
+/// installed keeps its libraries in that launcher's own folder; fetching them is what lets such
+/// an install start without starting the game in that launcher first.
+fn fetch_libraries(
+    version: &serde_json::Value,
+    minecraft: &Path,
+    log: &dyn Fn(String),
+) -> Result<usize, String> {
+    let needed =
+        crate::java_launch::classpath(version, minecraft, crate::java_launch::os_name())?;
+    let mut fetched = 0;
+    for library in version["libraries"].as_array().into_iter().flatten() {
+        let (Some(path), Some(url)) = (
+            crate::java_launch::library_path(library),
+            crate::java_launch::library_url(library),
+        ) else {
+            continue;
+        };
+        let file = minecraft.join("libraries").join(mojang::relative(&path)?);
+        if file.is_file() || !needed.contains(&file) {
+            continue;
+        }
+        log(format!("Fetching {path}"));
+        let bytes = get_bytes(&url)?;
+        if let Some(sha1) = crate::java_launch::library_sha1(library) {
+            if crate::sources::sha1_hex(&bytes) != sha1 {
+                return Err(format!("{path} failed its checksum from {url}"));
+            }
+        }
+        if let Some(parent) = file.parent() {
+            fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+        }
+        fs::write(&file, &bytes).map_err(|e| format!("{}: {e}", file.display()))?;
+        fetched += 1;
+    }
+    Ok(fetched)
+}
+
+/// The log4j configuration the resolved `version` names, into `assets/log_configs` when the
+/// folder lacks it: without it the game logs to its console only ("No configuration found") and
+/// nothing reaches `logs/latest.log`, which is where a player and a crash report look.
+fn fetch_log_config(
+    version: &serde_json::Value,
+    minecraft: &Path,
+    log: &dyn Fn(String),
+) -> Result<(), String> {
+    let file = &version["logging"]["client"]["file"];
+    let (Some(id), Some(url), Some(sha1)) = (
+        file["id"].as_str(),
+        file["url"].as_str(),
+        file["sha1"].as_str(),
+    ) else {
+        return Ok(());
+    };
+    let path = minecraft
+        .join("assets")
+        .join("log_configs")
+        .join(mojang::relative(id)?);
+    if path.is_file() {
+        return Ok(());
+    }
+    log(format!("Fetching {id}"));
+    let bytes = get_bytes(url)?;
+    if crate::sources::sha1_hex(&bytes) != sha1 {
+        return Err(format!("{id} failed its checksum from {url}"));
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+    }
+    fs::write(&path, &bytes).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// Every `versions/<id>/<id>.jar` a launcher folder holds.

@@ -361,11 +361,10 @@ fn list_in(game_home: &Path, data: &Path) -> Vec<Instance> {
                     .map(|s| UNIX_EPOCH + Duration::from_secs(s)),
                 launch: meta.launch,
                 java: meta.java,
-                home: meta.home.unwrap_or_else(|| home.clone()),
                 id,
                 kind,
                 work,
-                home,
+                home: meta.home.unwrap_or(home),
             }
         })
         .collect();

@@ -1,7 +1,6 @@
 //! A Java instance that plays in the `.minecraft` a player already has: its worlds, options and
 //! mods stay there, and deleting the instance leaves that folder alone (only the launcher's own
 //! folder for the instance goes to the Trash).
-use std::path::PathBuf;
 
 /// One test: the library reads where the game and the launcher keep their folders once per
 /// process, so the cases share them instead of racing for the variables.
