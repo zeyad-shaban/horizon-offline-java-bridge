@@ -98,14 +98,14 @@ default Steve/Alex offline: the game only fetches skins from Mojang's session se
 Releases live in [zeyad-shaban/horizon-offline-java-bridge](https://github.com/zeyad-shaban/horizon-offline-java-bridge/releases):
 `Horizon-Offline-Launcher-Setup.exe` (Inno Setup, no admin, Start menu + desktop shortcuts, uninstaller)
 and `horizon-launcher-windows-x64.zip` (`install.ps1 -Exe` installs from the folder). The launcher's
-version is 1.5.0, above upstream's latest, so the update check never swaps this fork for a stock build.
+version is 1.6.0, above upstream's latest, so the update check never swaps this fork for a stock build.
 
 `pack.ps1` builds the release launcher and packs the zip; `packaging/windows/setup.iss` makes the
 `Setup.exe`:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File pack.ps1
-iscc /DAppVersion=1.5.0 /DSource=launcher\target\release\horizon-launcher.exe /Odist packaging\windows\setup.iss
+iscc /DAppVersion=1.6.0 /DSource=launcher\target\release\horizon-launcher.exe /Odist packaging\windows\setup.iss
 ```
 
 ## What is not done yet
