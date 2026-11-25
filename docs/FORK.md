@@ -44,8 +44,8 @@ horizon-launcher play
 ```
 
 In the launcher's own New instance dialog the same thing is a click: pick Modded (or Vanilla),
-Minecraft 26.3, then the "Play in my .minecraft" row under Game folder (`JavaChoice::play_in`). The
-row appears when `backend::default_minecraft_dir` finds an install, and only for a new instance.
+Minecraft 26.3, then "Play in my .minecraft" under Folder (`JavaChoice::play_in`). The row appears
+when `backend::default_minecraft_dir` finds an install, and only for a new instance.
 
 The Fabric loader version is the one its metadata service calls newest for that Minecraft
 version; pin another one with `--loader-version`, or set it later with

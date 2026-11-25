@@ -2341,10 +2341,10 @@ fn seed_version(minecraft: &Path, id: &str, log: &dyn Fn(String)) -> Result<(), 
 }
 
 /// Every library file the resolved `version` names on this system's classpath that `minecraft`
-/// lacks, from the public host its version file names it by (Mojang's `libraries.minecraft.net`,
-/// or a loader's own), checked against the sha1 pinned there. A game folder another launcher
-/// installed keeps its libraries in that launcher's own folder; fetching them is what lets such
-/// an install start without starting the game in that launcher first.
+/// lacks, from the public library host its version file names it by (Mojang's, or a loader's
+/// own), checked against the sha1 pinned there. A game folder another launcher installed keeps
+/// its libraries in that launcher's own folder; fetching them is what lets such an install start
+/// without starting the game in that launcher first.
 fn fetch_libraries(
     version: &serde_json::Value,
     minecraft: &Path,

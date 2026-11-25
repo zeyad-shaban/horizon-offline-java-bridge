@@ -18,8 +18,8 @@ Play Minecraft with your own mods (Fabric 26.3, Sodium, Fabric API, and the rest
 
 1. Open the launcher.
 2. New instance, "Modded", Minecraft 26.3, Fabric.
-3. Under "Game folder", click "Play in my .minecraft". Your own %APPDATA%\.minecraft is used in
-   place: nothing is copied, nothing is deleted, and the launcher never needs a Microsoft account.
+3. Under "Folder", click "Play in my .minecraft". Your own %APPDATA%\.minecraft is used in place:
+   nothing is copied, nothing is deleted, and the launcher never needs a Microsoft account.
 4. Press Play. The first Play only fetches the small 26.3 version file from Mojang (your client jar
    is already there) and, if needed, the Java Mojang ships for this version.
 

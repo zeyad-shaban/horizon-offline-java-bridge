@@ -439,45 +439,49 @@ impl Launcher {
         let editing = self.instances.dialog.as_ref().and_then(|d| d.editing.clone());
         if let Some(folder) = editing.is_none().then(backend::default_minecraft_dir).flatten() {
             let inside = choice.play_in.is_some();
-            let label = match &choice.play_in {
-                Some(p) => format!("{} · {} · {}", tr("Your .minecraft"), p.display(), tr("click to play in a new folder")),
-                None => format!(
-                    "{} · {} · {}",
-                    tr("Play in my .minecraft"),
-                    folder.display(),
-                    tr("worlds, options and mods stay there")
-                ),
-            };
-            rows = rows.child(heading("Game folder")).child(
-                shell::action(
-                    "play-in-minecraft",
-                    if inside { Action::Raised } else { Action::Quiet },
-                    &t,
-                )
-                .h(px(26.))
-                .px(px(10.))
-                .min_w_0()
-                .child(shell::label(label))
-                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                    let folder = folder.clone();
-                    this.change(|j| {
-                        j.play_in = if j.play_in.is_some() {
-                            None
-                        } else {
-                            Some(folder.clone())
-                        }
-                    });
-                    cx.notify();
-                })),
+            let path = folder.display().to_string();
+            let target = folder.clone();
+            rows = rows.child(heading("Folder")).child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(10.))
+                    .child(
+                        shell::action(
+                            "play-in-minecraft",
+                            if inside { Action::Raised } else { Action::Quiet },
+                            &t,
+                        )
+                        .h(px(26.))
+                        .px(px(10.))
+                        .child(shell::label(tr("Play in my .minecraft").to_string()))
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            let folder = target.clone();
+                            this.change(|j| {
+                                j.play_in = if j.play_in.is_some() {
+                                    None
+                                } else {
+                                    Some(folder.clone())
+                                }
+                            });
+                            cx.notify();
+                        })),
+                    )
+                    .child(
+                        shell::text(night::CAPTION, c(n.muted))
+                            .relative()
+                            .child(path),
+                    ),
             );
         }
-        rows.child(shell::text(night::CAPTION, c(n.muted)).child(if choice.play_in.is_some() {
-            tr("Playing in your .minecraft needs no account: the game runs offline with your own files.")
-                .to_string()
+        if choice.play_in.is_some() {
+            rows
         } else {
-            tr("Play downloads the game from Mojang for your account the first time, with the Java it needs.")
-                .to_string()
-        }))
+            rows.child(shell::text(night::CAPTION, c(n.muted)).child(
+                tr("Play downloads the game from Mojang for your account the first time, with the Java it needs.")
+                    .to_string(),
+            ))
+        }
     }
 }
 

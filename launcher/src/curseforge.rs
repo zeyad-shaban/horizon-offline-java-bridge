@@ -84,7 +84,9 @@ pub fn manifest(zip: &Path) -> Result<Manifest, String> {
     let mut text = String::new();
     std::io::Read::read_to_string(&mut entry, &mut text)
         .map_err(|e| format!("{}: {e}", zip.display()))?;
-    serde_json::from_str(&text).map_err(|e| format!("{}: manifest.json: {e}", zip.display()))
+    // Windows tools write a byte-order mark into JSON they edit; it is not part of the document.
+    let text = text.trim_start_matches('\u{feff}');
+    serde_json::from_str(text).map_err(|e| format!("{}: manifest.json: {e}", zip.display()))
 }
 
 /// A file's name and CDN link from its two ids: CurseForge's website API, no key.
@@ -263,7 +265,11 @@ fn overrides(
     let mut written = 0;
     for i in 0..count {
         let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
-        let name = entry.name().map_err(|e| e.to_string())?.into_owned();
+        // A zip made on Windows may name its files with backslashes; a pack's own paths are "/".
+        let name = entry
+            .name()
+            .map_err(|e| e.to_string())?
+            .replace('\\', "/");
         let Some(relative) = OVERRIDES.iter().find_map(|o| name.strip_prefix(o)) else {
             continue;
         };
@@ -323,6 +329,28 @@ mod tests {
         assert_eq!(loader.version, "0.16.9");
         assert_eq!(pack.files.len(), 2);
         assert!(!pack.files[1].required);
+    }
+
+    #[test]
+    fn a_manifest_with_a_byte_order_mark_still_reads() {
+        // Windows editors write a BOM into JSON they touch; the manifest of a pack edited that
+        // way is still a CurseForge pack.
+        let path = std::env::temp_dir().join(format!(
+            "horizon-cf-bom-{}.zip",
+            std::process::id()
+        ));
+        let mut zip = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+        zip.start_file("manifest.json", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        std::io::Write::write_all(
+            &mut zip,
+            "\u{feff}{\"minecraft\": {\"version\": \"26.3\"}, \"files\": []}".as_bytes(),
+        )
+        .unwrap();
+        zip.finish().unwrap();
+        let pack = manifest(&path).unwrap();
+        assert_eq!(pack.minecraft.version, "26.3");
+        let _ = fs::remove_file(&path);
     }
 
     #[test]

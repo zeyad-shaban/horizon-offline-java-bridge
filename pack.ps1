@@ -36,7 +36,7 @@ if (-not $SkipBuild) {
         Pop-Location
     }
 }
-if (-not (Test-Path $exe)) { throw "No $exe: build it first (no -SkipBuild)." }
+if (-not (Test-Path $exe)) { throw "No $exe - build it first (no -SkipBuild)." }
 
 $name = "Horizon-Offline-Java-Bridge-$version-win-x64"
 $dist = Join-Path $Root "dist"
